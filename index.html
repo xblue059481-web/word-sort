@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>詞語歸類練習</title>
+<style>
+  :root{--bg:#f6f4ef;--card:#fffdf8;--ink:#2b2a27;--muted:#6f6b63;--left:#2f6f6a;--right:#b5562f;--attr:#4a4fa3;--err:#c0392b;--line:#e3ddd1}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--ink);font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;font-size:17px;line-height:1.75;-webkit-user-select:none;user-select:none}
+  .wrap{max-width:520px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;padding:20px 16px 16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px 20px;box-shadow:0 2px 0 rgba(0,0,0,.03)}
+  h1{font-size:22px;margin:0 0 6px;letter-spacing:.02em}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 14px}
+  label{display:block;font-weight:700;margin:16px 0 6px}
+  input{font:inherit;width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;background:#fff;-webkit-user-select:text;user-select:text}
+  input:focus{outline:none;border-color:var(--ink)}
+  .hint{font-size:13px;color:var(--muted);margin-top:6px}
+  .go{font:inherit;font-weight:700;width:100%;margin-top:18px;padding:15px;border:0;border-radius:14px;background:var(--ink);color:#fff}
+  .go:disabled{opacity:.35}
+  .steps{display:flex;gap:4px;margin:0 0 14px}
+  .steps i{flex:1;height:6px;border-radius:3px;background:var(--line)}
+  .steps i.on{background:var(--ink)}
+  .labels{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+  .lab{border-radius:14px;padding:10px 12px;min-height:58px;font-weight:700;font-size:16px;line-height:1.45;background:var(--card);border:1px solid var(--line)}
+  .lab.r{text-align:right}
+  .lab .c{display:block}
+  .lab .c.concept.L{color:var(--left)} .lab .c.concept.R{color:var(--right)}
+  .lab .c.attr{color:var(--attr)}
+  .lab .or{display:block;font-size:12px;color:var(--muted);font-weight:400}
+  .arena{flex:1;min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--card);border:1px solid var(--line);border-radius:18px;position:relative}
+  #word{font-size:38px;font-weight:800;letter-spacing:.04em;text-align:center;padding:0 10px}
+  #word.attr{color:var(--attr)}
+  #word.fix{color:#bbb5a8;font-weight:400}
+  #miss{position:absolute;bottom:14px;left:0;right:0;text-align:center;color:var(--err);font-weight:700;font-size:15px;visibility:hidden}
+  #miss.show{visibility:visible}
+  #mark{font-size:56px;color:var(--err);line-height:1;height:56px;visibility:hidden}
+  #mark.show{visibility:visible}
+  .pads{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+  .pad{font:inherit;font-size:20px;font-weight:800;padding:30px 0;border:0;border-radius:18px;color:#fff;touch-action:manipulation}
+  .pad.L{background:var(--left)} .pad.R{background:var(--right)}
+  .pad:active{transform:scale(.98)}
+  .pad small{display:block;font-size:12px;font-weight:400;opacity:.8}
+  ul.rules{padding-left:20px;margin:8px 0}
+  ul.rules li{margin:4px 0}
+  .count{color:var(--muted);font-size:14px}
+  [hidden]{display:none !important}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- 畫面一：說明與同意 -->
+  <section id="vStart" class="card">
+    <h1 id="tTitle"></h1>
+    <p class="sub" id="tLead"></p>
+    <p id="tConsent"></p>
+    <label for="code">受測代碼</label>
+    <input id="code" maxlength="20" autocomplete="off" autocapitalize="characters" placeholder="請輸入研究者給你的代碼">
+    <div class="hint">請勿輸入姓名或學號。</div>
+    <button class="go" id="btnStart" disabled>我同意參加，開始</button>
+  </section>
+
+  <!-- 畫面二：每一段開始前的說明 -->
+  <section id="vIntro" class="card" hidden>
+    <div class="steps" id="introSteps"></div>
+    <h1 id="introTitle"></h1>
+    <div class="labels" id="introLabels"></div>
+    <ul class="rules">
+      <li>字詞出現在中間，請<b>盡快</b>按左邊或右邊。</li>
+      <li>按錯會出現紅色 ✕，請改按另一邊才會繼續。</li>
+      <li>用電腦可以按鍵盤 <b>E</b>（左）與 <b>I</b>（右）。</li>
+    </ul>
+    <p class="count" id="introCount"></p>
+    <button class="go" id="btnBlock">準備好了</button>
+  </section>
+
+  <!-- 畫面三：作答 -->
+  <section id="vTask" hidden style="flex:1;display:flex;flex-direction:column">
+    <div class="labels" id="taskLabels"></div>
+    <div class="arena">
+      <div id="mark">✕</div>
+      <div id="word" class="fix">＋</div>
+      <div id="miss">請改按另一邊</div>
+    </div>
+    <div class="pads">
+      <button class="pad L" id="padL">左<small>E</small></button>
+      <button class="pad R" id="padR">右<small>I</small></button>
+    </div>
+  </section>
+
+  <!-- 畫面四：結束 -->
+  <section id="vEnd" class="card" hidden>
+    <h1>完成了，謝謝你！</h1>
+    <p id="endMsg"></p>
+    <button class="go" id="btnRetry" hidden>重新傳送</button>
+  </section>
+
+</div>
+<script>
+/* ================================================================
+   研究者設定區
+   ================================================================ */
+var SETUP = {
+  title: "詞語歸類練習",
+  lead: "一個約 5 分鐘的分類小作業",
+  consent: "接下來你會看到一連串字詞，請依照畫面上方的分類規則，盡快把字詞分到左邊或右邊。作答只記錄代碼、按鍵是否正確與反應時間，不記錄姓名，只用於課堂研究。你可以隨時關閉頁面停止。",
+  // 資料接收網址（Apps Script 部署後的 /exec 網址）
+  endpoint: "https://script.google.com/macros/s/AKfycbwyJ-CgzmAQ7YEVymn4B3eIdOcBB2DQXLYagYldcFhaKNdZu-U6YOd7KxKrBsVBQNDM4w/exec",
+  // 概念類別 1、概念類別 2、屬性 1（配對 A 與概念 1 同邊）、屬性 2
+  concept1: { label: "遠距工作", words: ["在家上班", "視訊會議", "居家辦公", "遠端連線"] },
+  concept2: { label: "進辦公室", words: ["進公司", "實體會議", "辦公座位", "公司打卡"] },
+  attr1:    { label: "投入",     words: ["專注", "積極", "認真", "勤奮"] },
+  attr2:    { label: "懈怠",     words: ["拖延", "分心", "偷懶", "敷衍"] },
+  // 七個區段的嘗試次數
+  blockSizes: [20, 20, 20, 40, 20, 20, 40]
+};
+
+/* ================================================================
+   程式本體
+   ================================================================ */
+var el = function (id) { return document.getElementById(id); };
+
+// 隨機決定先做哪一種配對：order 1 = 先 A 後 B；order 2 = 先 B 後 A
+// 配對 A：概念 1 與屬性 1（投入）同一邊；配對 B：概念 1 與屬性 2（懈怠）同一邊
+var ORDER = Math.random() < 0.5 ? 1 : 2;
+var P1 = ORDER === 1 ? "A" : "B";
+var P2 = ORDER === 1 ? "B" : "A";
+
+// 七個區段：kind 是 concept（只分概念）、attr（只分屬性）、combo（合併）
+var PLAN = [
+  { kind: "concept", pairing: P1, phase: "single" },
+  { kind: "attr",    pairing: P1, phase: "single" },
+  { kind: "combo",   pairing: P1, phase: "practice" },
+  { kind: "combo",   pairing: P1, phase: "test" },
+  { kind: "concept", pairing: P2, phase: "single" },
+  { kind: "combo",   pairing: P2, phase: "practice" },
+  { kind: "combo",   pairing: P2, phase: "test" }
+];
+
+// 概念類別放在哪一邊：配對 A 時概念 1 在左，配對 B 時概念 1 在右；屬性固定屬性 1 在左、屬性 2 在右
+function sideOf(category, pairing) {
+  if (category === "attr1") return "L";
+  if (category === "attr2") return "R";
+  var c1Left = pairing === "A";
+  if (category === "concept1") return c1Left ? "L" : "R";
+  return c1Left ? "R" : "L";
+}
+
+// 洗牌
+function mix(arr) {
+  for (var i = arr.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+  }
+  return arr;
+}
+
+// 從兩個類別各取一半，每個字詞出現次數盡量平均，再打亂
+function balanced(catA, catB, n) {
+  var out = [];
+  [catA, catB].forEach(function (cat) {
+    var need = n / 2, bag = [];
+    while (bag.length < need) bag = bag.concat(mix(SETUP[cat].words.slice()));
+    bag.slice(0, need).forEach(function (w) { out.push({ category: cat, stimulus: w }); });
+  });
+  return mix(out);
+}
+
+// 產生一個區段的嘗試清單
+function makeTrials(block, n) {
+  var list;
+  if (block.kind === "concept") list = balanced("concept1", "concept2", n);
+  else if (block.kind === "attr") list = balanced("attr1", "attr2", n);
+  else {
+    // 合併區段：概念與屬性交替出現
+    var c = balanced("concept1", "concept2", n / 2);
+    var a = balanced("attr1", "attr2", n / 2);
+    list = [];
+    for (var i = 0; i < n / 2; i++) { list.push(a[i]); list.push(c[i]); }
+  }
+  list.forEach(function (t) { t.side = sideOf(t.category, block.pairing); });
+  return list;
+}
+
+// 一邊的標籤內容（HTML）
+function labelHtml(block, side) {
+  var parts = [];
+  if (block.kind !== "attr") {
+    var cat = sideOf("concept1", block.pairing) === side ? "concept1" : "concept2";
+    parts.push('<span class="c concept ' + side + '">' + SETUP[cat].label + '</span>');
+  }
+  if (block.kind !== "concept") {
+    var at = side === "L" ? "attr1" : "attr2";
+    parts.push('<span class="c attr">' + SETUP[at].label + '</span>');
+  }
+  return parts.join('<span class="or">或</span>');
+}
+function drawLabels(target, block) {
+  target.innerHTML = '<div class="lab">' + labelHtml(block, "L") + '</div><div class="lab r">' + labelHtml(block, "R") + '</div>';
+}
+
+// 畫面切換
+function view(id) {
+  ["vStart", "vIntro", "vTask", "vEnd"].forEach(function (v) { el(v).hidden = v !== id; });
+}
+
+// 作答狀態
+var pid = "", bIdx = 0, trials = [], tIdx = 0, onset = 0, waiting = false, missed = false, sent = false;
+var log = [];
+
+// 每一段開始前的說明
+function showIntro() {
+  var b = PLAN[bIdx];
+  var steps = "";
+  for (var i = 0; i < PLAN.length; i++) steps += '<i class="' + (i <= bIdx ? "on" : "") + '"></i>';
+  el("introSteps").innerHTML = steps;
+  el("introTitle").textContent = "第 " + (bIdx + 1) + " / 7 段";
+  drawLabels(el("introLabels"), b);
+  el("introCount").textContent = "這一段共 " + SETUP.blockSizes[bIdx] + " 個字詞。";
+  view("vIntro");
+}
+
+// 開始一段
+function runBlock() {
+  trials = makeTrials(PLAN[bIdx], SETUP.blockSizes[bIdx]);
+  tIdx = 0;
+  drawLabels(el("taskLabels"), PLAN[bIdx]);
+  setWord("＋", "fix");
+  view("vTask");
+  setTimeout(nextTrial, 800);
+}
+
+function setWord(text, cls) { var w = el("word"); w.textContent = text; w.className = cls || ""; }
+
+// 呈現下一個字詞
+function nextTrial() {
+  if (tIdx >= trials.length) {
+    bIdx++;
+    if (bIdx < PLAN.length) showIntro(); else finish();
+    return;
+  }
+  var t = trials[tIdx];
+  el("mark").className = ""; el("miss").className = "";
+  setWord(t.stimulus, t.category.indexOf("attr") === 0 ? "attr" : "");
+  missed = false;
+  onset = performance.now();          // 從字詞出現開始計時
+  waiting = true;
+}
+
+// 處理一次按鍵
+function press(side) {
+  if (!waiting) return;
+  var t = trials[tIdx], b = PLAN[bIdx];
+  if (side !== t.side) {              // 按錯：顯示 ✕，必須改按正確的一邊
+    missed = true;
+    el("mark").className = "show"; el("miss").className = "show";
+    return;
+  }
+  waiting = false;
+  log.push({
+    block: bIdx + 1,
+    pairing: b.phase === "single" ? "" : b.pairing,
+    phase: b.phase,
+    trial: tIdx + 1,
+    category: t.category,
+    stimulus: t.stimulus,
+    correct: missed ? 0 : 1,
+    rt_ms: Math.round(performance.now() - onset)   // 算到按對為止
+  });
+  tIdx++;
+  el("mark").className = ""; el("miss").className = "";
+  setWord("＋", "fix");
+  setTimeout(nextTrial, 300);
+}
+
+// 結束並送出資料（畫面上不顯示任何分數）
+function finish() {
+  view("vEnd");
+  if (!SETUP.endpoint) { el("endMsg").textContent = "（研究者尚未設定資料接收網址，資料沒有送出。）"; return; }
+  send();
+}
+function send() {
+  if (sent) return;
+  el("btnRetry").hidden = true;
+  el("endMsg").textContent = "正在傳送資料，請先不要關閉頁面…";
+  fetch(SETUP.endpoint, {
+    method: "POST", mode: "no-cors",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ id: pid, order: ORDER, trials: log })
+  }).then(function () {
+    sent = true;
+    el("endMsg").textContent = "資料已送出，現在可以關閉這個頁面。";
+  }).catch(function () {
+    el("endMsg").textContent = "傳送失敗，請確認網路連線後按「重新傳送」。";
+    el("btnRetry").hidden = false;
+  });
+}
+
+// 事件綁定
+el("tTitle").textContent = SETUP.title;
+el("tLead").textContent = SETUP.lead;
+el("tConsent").textContent = SETUP.consent;
+document.title = SETUP.title;
+el("code").addEventListener("input", function () { el("btnStart").disabled = el("code").value.trim() === ""; });
+el("btnStart").addEventListener("click", function () { pid = el("code").value.trim(); showIntro(); });
+el("btnBlock").addEventListener("click", runBlock);
+el("btnRetry").addEventListener("click", send);
+el("padL").addEventListener("click", function () { press("L"); });
+el("padR").addEventListener("click", function () { press("R"); });
+document.addEventListener("keydown", function (e) {
+  var k = (e.key || "").toLowerCase();
+  if (el("vTask").hidden) return;
+  if (k === "e") press("L");
+  if (k === "i") press("R");
+});
+</script>
+</body>
+</html>
